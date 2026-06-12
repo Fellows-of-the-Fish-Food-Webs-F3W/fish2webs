@@ -23,6 +23,7 @@ install.packages("pak")
 pak::pak("Fellows-of-the-Fish-Food-Webs-F3W/fish2webs")
 
 library(fish2webs)
+library(dplyr) # This is the only way to make the fishdatabuilder package work...
 ```
 
 The required companion packages are installed automatically.

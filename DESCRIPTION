@@ -22,7 +22,8 @@ Imports:
     lifecycle,
     cli,
     glue,
-    withr
+    withr,
+    magrittr
 Suggests:
     testthat,
     knitr,

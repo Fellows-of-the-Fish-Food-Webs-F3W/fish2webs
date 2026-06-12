@@ -1,8 +1,9 @@
 #' fish2webs package
 #'
 #' @keywords internal
-#' @import dplyr
 #' @import tidyr
+#' @importFrom magrittr %>%
+#' @import dplyr
 #' @import tibble
 #' @import purrr
 #' @import stringr

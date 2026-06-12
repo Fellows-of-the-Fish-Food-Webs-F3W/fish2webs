@@ -39,8 +39,6 @@
 #'
 #' @seealso [size2webs()]
 #'
-#' @import dplyr
-#'
 #' @export
 fish2size <- function(write_output = F){
   
