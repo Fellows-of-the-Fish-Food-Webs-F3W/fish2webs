@@ -31,6 +31,14 @@ The required companion packages are installed automatically.
 
 # Quick start
 
+## Load datasets
+
+```r
+data(resource_diet_shift, package = "foodwebbuilder")
+data(fish_diet_shift, package = "foodwebbuilder")
+data(pred_win, package = "foodwebbuilder")
+```
+
 ## Generate individual fish size measurements
 
 The first step is to extract, clean, and harmonise fish size measurements from the ASPE database.
