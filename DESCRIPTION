@@ -1,0 +1,28 @@
+Package: fish2webs
+Title: Build Size-Structured Fish Food Webs
+Version: 0.0.0.9000
+Authors@R:
+    person("Willem", "Bonnaffe", email = "w.bonnaffe@gmail.com", role = c("aut", "cre"))
+Description: Tools for transforming fish survey measurements into
+    size-structured food webs and associated summary outputs.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.1.0)
+Imports:
+    dplyr,
+    tidyr,
+    purrr,
+    fishdatabuilder,
+    foodwebbuilder
+Suggests:
+    testthat,
+    knitr,
+    rmarkdown
+Remotes:
+    Fellows-of-the-Fish-Food-Webs-F3W/fishdatabuilder,
+    Fellows-of-the-Fish-Food-Webs-F3W/foodwebbuilder
+URL: https://github.com/Fellows-of-the-Fish-Food-Webs-F3W/fish2webs
+BugReports: https://github.com/Fellows-of-the-Fish-Food-Webs-F3W/fish2webs/issues
