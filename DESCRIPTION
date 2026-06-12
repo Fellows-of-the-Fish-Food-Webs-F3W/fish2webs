@@ -17,7 +17,12 @@ Imports:
     tidyr,
     purrr,
     fishdatabuilder,
-    foodwebbuilder
+    foodwebbuilder,
+    rlang,
+    lifecycle,
+    cli,
+    glue,
+    withr
 Suggests:
     testthat,
     knitr,
