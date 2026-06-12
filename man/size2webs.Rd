@@ -79,6 +79,6 @@ If \code{write_output = TRUE}, the following files are written:
 \code{tab_local_foodwebs_summary_metrics.csv}.
 }
 \seealso{
-\code{\link[=compute_size_classes]{compute_size_classes()}}, \code{\link[=build_metaweb]{build_metaweb()}},
-\code{\link[=build_local_foodweb]{build_local_foodweb()}}
+\code{\link[foodwebbuilder:compute_size_classes]{foodwebbuilder::compute_size_classes()}}, \code{\link[foodwebbuilder:build_metaweb]{foodwebbuilder::build_metaweb()}},
+\code{\link[foodwebbuilder:build_local_foodweb]{foodwebbuilder::build_local_foodweb()}}
 }
