@@ -2,7 +2,7 @@
 ## main.R ##
 ############
 
-## Goal: Define main functions to generate the F2W dataset containing curated individual 
+## Goal: Define main functions to generate the F2W dataset containing curated individual
 ## fish length measurements and associated food webs.
 
 #' Generate validated individual fish size measurements from ASPE surveys
@@ -41,7 +41,7 @@
 #'
 #' @export
 fish2size <- function(write_output = F){
-  
+
   ## 1. Initiate
   message("Extracting metadata...")
   ref_protocol <- get_ref_protocol_operation_aspe() |> as_tibble()
@@ -50,37 +50,37 @@ fish2size <- function(write_output = F){
   op_description <- get_description_operation_aspe() |> as_tibble()
   ref_isolation <- get_ref_isolation_operation_aspe() |> as_tibble()
   raw_ref_species <- get_species_aspe() |> as_tibble()
-  
+
   detail_sampling <- get_elementary_sampling_aspe() |> as_tibble()
   ref_detail_sampling <- get_ref_elementary_sampling_aspe() |> as_tibble()
   ref_prospection <- get_ref_prospection_method_operation_aspe() |> as_tibble()
   ref_passage <- get_ref_passage_aspe() |> as_tibble()
-  
+
   point_group <- get_point_group_aspe() |> as_tibble()
   ref_point_group <- get_ref_point_group_aspe() |> as_tibble()
-  
+
   species <- cleaning_species_ref_aspe() |> as_tibble()
-  
+
   ref_batch_type <- get_ref_type_batch_aspe() |> as_tibble()
   raw_fish_batch <- get_fish_batch_aspe() |> as_tibble()
   raw_individual_measurement <- get_individual_measurement_aspe() |> as_tibble()
   raw_ref_length <- get_ref_type_length_aspe() |> as_tibble()
   ref_length <- cleaning_ref_length_type_aspe() |> as_tibble()
-  
+
   op <- clean_operation_aspe() %>%
     as_tibble() %>%
     filter(
       protocol %in% c("complete", "partial_by_point", "partial_over_bank")
     )
-  
+
   ele_sampling <- cleaning_elementary_sampling() |> as_tibble()
   point_group <- cleaning_point_group()
-  
+
   fish_batch <- clean_fish_batch(fish_batch = raw_fish_batch)
   ind_measure <- clean_individual_measurement_aspe(
     ind_measure = raw_individual_measurement
   )
-  
+
   ## 2. Filter out operations
   message("Filtering sampling operations...")
   filtered_sampling <- filter_operation_batch_measure(
@@ -96,7 +96,7 @@ fish2size <- function(write_output = F){
     fish_batch = fish_batch,
     ind_measure = ind_measure
   )
-  
+
   ## TODO: adding fishbase validated names in cleaning_species_ref_aspe()
   filtered_sampling[c("fish_batch", "ind_measure")] <-
     filtered_sampling[c("fish_batch", "ind_measure")] |>
@@ -112,7 +112,7 @@ fish2size <- function(write_output = F){
               by = join_by(species_code)
     )
   ll <- rfishbase::length_length(species_list = species_fork_length$latin_name)
-  
+
   sanitized_length_type <- convert_fork_to_total(
     fish_batch = filtered_sampling$fish_batch,
     ind_measure = filtered_sampling$ind_measure,
@@ -123,14 +123,14 @@ fish2size <- function(write_output = F){
     manual_priority = FALSE,
     verbose = TRUE
   )
-  
+
   sanitized_length <- remove_impossible_lengths(
     ind_measure = sanitized_length_type$ind_measure,
     fish_batch = sanitized_length_type$fish_batch,
     species_ref = species,
     remove_outliers = TRUE
   )
-  
+
   sanitized_length$outlier_summary |>
     arrange(desc(n_outliers))
   sanitized_length$outliers |>
@@ -138,7 +138,7 @@ fish2size <- function(write_output = F){
     select(-c(operation_id:measure_id)) |>
     arrange(desc(size)) |>
     print(n = 200)
-  
+
   sanitized <- sanitize_batch_data(
     fish_batch = sanitized_length$fish_batch,
     ind_measure = sanitized_length$ind_measure,
@@ -146,7 +146,7 @@ fish2size <- function(write_output = F){
     min_individuals_G = 2,
     min_individuals_SL = 6
   )
-  
+
   sanitized$filtering_log
   sanitized$validation_issues
   sanitized$fish_batch |>
@@ -155,7 +155,7 @@ fish2size <- function(write_output = F){
   sanitized$fish_batch |>
     filter(batch_type == "G") |>
     filter(is.na(min_length) | is.na(max_length))
-  
+
 
   ## 4. Final file
   message("Generating final length measurements...")
@@ -164,11 +164,11 @@ fish2size <- function(write_output = F){
     message("Writing outputs...")
     write.csv(fish_individual_size, "tab_fish_individual_size.csv", quote = F, row.names = F)
   }
-  
+
   ## End
   message("Done!")
   return(fish_individual_size)
-  
+
 }
 
 #' Build size-structured food webs from individual fish sizes
@@ -233,41 +233,41 @@ fish2size <- function(write_output = F){
 #'
 #' @export
 size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_shift, pred_win, write_output=T, selected_operations=NULL){
-  
+
   ## Filter out missing species
   ind_clean <- remove_missing_species(
     ind_measure     = ind_measure, # INPUT
     fish_diet_shift = fish_diet_shift, # INPUT
     pred_win        = pred_win # INPUT
   )
-  
+
   ## Clean column names
-  colnames(ind_clean) <- c("operation_id", "batch_id", "species_code", "size")
-  
+  #colnames(ind_clean) <- c("operation_id", "batch_id", "species_code", "size")
+
   ## Compute size classes
   message("Computing size classes...")
   size_classes <- compute_size_classes(
     ind_measure = ind_clean,
     num_classes = num_classes
   )
-  
+
   ## Compute metaweb
   message("Building metaweb...")
   metaweb <- build_metaweb(
-    tab_size_classes    = size_classes, 
+    tab_size_classes    = size_classes,
     pred_win            = pred_win, # INPUT
     fish_diet_shift     = fish_diet_shift, # INPUT
     resource_diet_shift = resource_diet_shift, # INPUT
     num_classes         = num_classes, # INPUT
     selected_resources  = c("det", "biof", "phytob", "macroph", "phytopl", "zoopl", "zoob") # WB: Make sure by default it's all resources
   )
-  
+
   ## Subset operations
   if (!is.null(selected_operations)){
     s <- NULL; for (selected_operations_ in selected_operations) s <- c(s, which(ind_clean$operation_id == selected_operations_))
     ind_clean <- ind_clean[s,]
   }
-  
+
   ## Build local foodwebs
   message("Extracting local food webs...")
   local_foodwebs <- build_local_foodweb(
@@ -277,7 +277,7 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
     tab_size_classes  = size_classes,
     selected_resources  = c("det", "biof", "phytob", "macroph", "phytopl", "zoopl", "zoob")
   )
-  
+
   ## Compute local food web metrics
   message("Compute local food web metrics...")
   tab_local_foodweb_summary_metrics <- NULL
@@ -287,12 +287,12 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
   }
   tab_local_foodweb_summary_metrics <- data.frame(tab_local_foodweb_summary_metrics)
   tab_local_foodweb_summary_metrics$operation_id <- names(local_foodwebs)
-  
+
   ## Flatten food webs and store
   message("Flattening local food webs for storage...")
   tab_metaweb_flattened <- flatten_foodweb(metaweb)
   tab_local_foodwebs_flattened <- flatten_foodweb_list(local_foodwebs)
-  
+
   ## Write output
   if (write_output == T){
     message("Writing outputs...")
@@ -301,10 +301,10 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
     write.csv(tab_local_foodwebs_flattened, "tab_local_foodwebs.csv", quote=F, row.names=F)
     write.csv(tab_local_foodweb_summary_metrics, "tab_local_foodwebs_summary_metrics.csv", quote=F, row.names=F)
   }
-  
+
   ## End
   message("Done!")
-  return(list("tab_size_classes" = size_classes, 
+  return(list("tab_size_classes" = size_classes,
               "tab_metaweb_flattened" = tab_metaweb_flattened,
               "tab_local_foodwebs_flattened" = tab_local_foodwebs_flattened,
               "tab_local_foodwebs_summary_metrics" = tab_local_foodweb_summary_metrics
