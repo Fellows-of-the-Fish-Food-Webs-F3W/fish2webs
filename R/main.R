@@ -297,15 +297,16 @@ fish2size <- function(write_output = FALSE) {
   )
 }
 
+
 #' Build size-structured food webs from individual fish sizes
 #'
 #' @description
 #' Constructs a size-based global metaweb and operation-specific local food
 #' webs from a table of individual fish size measurements.
 #'
-#' The full `ind_measure` dataset is used to build the metaweb. Local food webs
-#' are then extracted for each sampling operation represented in
-#' `ind_measure`, or for the subset specified by `selected_operations`.
+#' The complete individual-level dataset is used to define size classes and
+#' construct the global metaweb. Local food webs are then extracted for each
+#' sampling operation, or for a subset specified by `selected_operations`.
 #'
 #' Individuals are assigned to size classes, trophic species are inferred from
 #' species-specific diet shifts and predator-prey size constraints, and network
@@ -327,116 +328,182 @@ fish2size <- function(write_output = FALSE) {
 #'   values. If provided, local food webs are built only for these operations.
 #'
 #' @return
-#' A named list with four elements:
-#' \describe{
-#'   \item{tab_size_classes}{A data frame of size-class boundaries for each
-#'   species.}
-#'   \item{tab_metaweb_flattened}{A flattened representation of the global
-#'   metaweb.}
-#'   \item{tab_local_foodwebs_flattened}{A flattened representation of all local
-#'   food webs.}
-#'   \item{tab_local_foodwebs_summary_metrics}{A data frame of summary network
-#'   metrics for each local food web.}
+#' A named list containing four data frames:
+#' \itemize{
+#'   \item `trophic_species_size_classes`: size-class boundaries defining
+#'     trophic species.
+#'   \item `metaweb`: flattened global metaweb.
+#'   \item `local_foodwebs`: flattened local food webs.
+#'   \item `local_foodweb_metrics`: food-web metrics for each sampling
+#'     operation.
 #' }
+
 #'
 #' @details
-#' The metaweb is always constructed from the full cleaned dataset, regardless
-#' of any `selected_operations` subset. The `selected_operations` argument only
-#' affects which local food webs are extracted and summarized.
+#' Individuals with missing species information are removed before constructing
+#' size classes and food webs.
 #'
-#' The function proceeds in four main stages:
-#' 1. removes individuals with missing species information;
-#' 2. computes size classes for all species present in the dataset;
-#' 3. builds the global metaweb using diet-shift and size-constraint rules;
-#' 4. extracts local food webs by operation and computes summary metrics.
+#' Size classes and the global metaweb are always constructed from the complete
+#' cleaned dataset. `selected_operations` only determines which local food webs
+#' are extracted and summarized.
 #'
 #' If `write_output = TRUE`, the following files are written:
-#' `tab_size_classes.csv`, `tab_metaweb.csv`, `tab_local_foodwebs.csv`, and
-#' `tab_local_foodwebs_summary_metrics.csv`.
+#' `8_tab_trophic_species_size_classes.csv`, `9_tab_metaweb.csv`,
+#' `10_tab_local_foodwebs.csv`, and `11_tab_local_foodweb_metrics.csv`.
 #'
 #' @seealso [compute_size_classes()], [build_metaweb()],
 #'   [build_local_foodweb()]
 #'
 #' @export
-size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_shift, pred_win, write_output=T, selected_operations=NULL){
+size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_shift, pred_win, write_output = FALSE, selected_operations = NULL){
 
-  ## Filter out missing species
-  ind_clean <- remove_missing_species(
-    ind_measure     = ind_measure, # INPUT
-    fish_diet_shift = fish_diet_shift, # INPUT
-    pred_win        = pred_win # INPUT
-  )
+    ## 1. Prepare individual fish data
+    message("Preparing individual fish data...")
 
-  ## Clean column names
-  #colnames(ind_clean) <- c("operation_id", "batch_id", "species_code", "size")
-
-  ## Compute size classes
-  message("Computing size classes...")
-  size_classes <- compute_size_classes(
-    ind_measure = ind_clean,
-    num_classes = num_classes
-  )
-
-  ## Compute metaweb
-  message("Building metaweb...")
-  metaweb <- build_metaweb(
-    tab_size_classes    = size_classes,
-    pred_win            = pred_win, # INPUT
-    fish_diet_shift     = fish_diet_shift, # INPUT
-    resource_diet_shift = resource_diet_shift, # INPUT
-    num_classes         = num_classes, # INPUT
-    selected_resources  = c("det", "biof", "phytob", "macroph", "phytopl", "zoopl", "zoob") # WB: Make sure by default it's all resources
-  )
-
-  ## Subset operations
-  if (!is.null(selected_operations)){
-    s <- NULL; for (selected_operations_ in selected_operations) s <- c(s, which(ind_clean$operation_id == selected_operations_))
-    ind_clean <- ind_clean[s,]
-  }
-
-  ## Build local foodwebs
-  message("Extracting local food webs...")
-  local_foodwebs <- build_local_foodweb(
-    ind_measure       = ind_clean,
-    local_id          = "operation_id",         # column in ind_measure
-    metaweb           = metaweb,
-    tab_size_classes  = size_classes,
-    selected_resources  = c("det", "biof", "phytob", "macroph", "phytopl", "zoopl", "zoob")
-  )
-
-  ## Compute local food web metrics
-  message("Compute local food web metrics...")
-  tab_local_foodweb_summary_metrics <- NULL
-  for (local_foodweb in local_foodwebs){
-    metrics <- compute_metrics_summary(local_foodweb)
-    tab_local_foodweb_summary_metrics <- rbind(tab_local_foodweb_summary_metrics, metrics)
-  }
-  tab_local_foodweb_summary_metrics <- data.frame(tab_local_foodweb_summary_metrics)
-  tab_local_foodweb_summary_metrics$operation_id <- names(local_foodwebs)
-
-  ## Flatten food webs and store
-  message("Flattening local food webs for storage...")
-  tab_metaweb_flattened <- flatten_foodweb(metaweb)
-  tab_local_foodwebs_flattened <- flatten_foodweb_list(local_foodwebs)
-
-  ## Write output
-  if (write_output == T){
-    message("Writing outputs...")
-    write.csv(size_classes, "8_tab_trophic_species_size_classes.csv", quote=F, row.names=F)
-    write.csv(tab_metaweb_flattened, "9_tab_metaweb.csv", quote=F, row.names=F)
-    write.csv(tab_local_foodwebs_flattened, "10_tab_local_foodwebs.csv", quote=F, row.names=F)
-    write.csv(tab_local_foodweb_summary_metrics, "11_tab_local_foodweb_metrics.csv", quote=F, row.names=F)
-  }
-
-  ## End
-  message("Done!")
-  return(list("tab_trophic_species_size_classes" = size_classes,
-              "tab_metaweb_flattened" = tab_metaweb_flattened,
-              "tab_local_foodwebs_flattened" = tab_local_foodwebs_flattened,
-              "tab_local_foodwebs_metrics" = tab_local_foodweb_summary_metrics
+    ind_clean <- remove_missing_species(
+      ind_measure = ind_measure,
+      fish_diet_shift = fish_diet_shift,
+      pred_win = pred_win
     )
-  )
-}
 
-#
-###
+
+    ## 2. Compute trophic species size classes
+    message("Computing trophic species size classes...")
+
+    size_classes <- compute_size_classes(
+      ind_measure = ind_clean,
+      num_classes = num_classes
+    )
+
+
+
+    ## 3. Compute metaweb
+    message("Building metaweb...")
+    selected_resources <- c(
+      "det",
+      "biof",
+      "phytob",
+      "macroph",
+      "phytopl",
+      "zoopl",
+      "zoob"
+    ) #Make sure by default it's all resources
+
+    metaweb <- build_metaweb(
+      tab_size_classes = size_classes,
+      pred_win = pred_win,
+      fish_diet_shift = fish_diet_shift,
+      resource_diet_shift = resource_diet_shift,
+      num_classes = num_classes,
+      selected_resources = selected_resources
+    )
+
+
+    ## 4. Select operations
+    if (!is.null(selected_operations)) {
+
+      ind_clean <- ind_clean |>
+        dplyr::filter(
+          operation_id %in% selected_operations
+        )
+    }
+
+
+    ## 5. Build local food webs
+    message("Extracting local food webs...")
+
+    local_foodwebs <- build_local_foodweb(
+      ind_measure = ind_clean,
+      local_id = "operation_id",
+      metaweb = metaweb,
+      tab_size_classes = size_classes,
+      selected_resources = selected_resources
+    )
+
+
+    ## 6. Compute local food-web metrics
+    message("Computing local food web metrics...")
+
+    tab_local_foodweb_metrics <- local_foodwebs |>
+      lapply(compute_metrics_summary) |>
+      dplyr::bind_rows(.id = "operation_id")
+
+
+    ## 7. Flatten food webs
+    message("Flattening food webs for storage...")
+
+    tab_metaweb <- flatten_foodweb(metaweb)
+
+    tab_local_foodwebs <- flatten_foodweb_list(local_foodwebs) |>
+      dplyr::select(
+        operation_id,
+        prey,
+        consumer,
+        interaction
+      )
+
+    tab_local_foodweb_metrics <- tab_local_foodweb_metrics |>
+      dplyr::select(
+        operation_id,
+        S,
+        L,
+        L.S,
+        C,
+        meanTL,
+        maxTL,
+        meanTB,
+        maxTB,
+        meanOI,
+        fracBase,
+        fracTop,
+        fracInt
+      )
+
+
+    ## 8. Write outputs
+    if (write_output) {
+
+      message("Writing outputs...")
+
+      write.csv(
+        size_classes,
+        "8_tab_trophic_species_size_classes.csv",
+        quote = FALSE,
+        row.names = FALSE
+      )
+
+      write.csv(
+        tab_metaweb,
+        "9_tab_metaweb.csv",
+        quote = FALSE,
+        row.names = FALSE
+      )
+
+      write.csv(
+        tab_local_foodwebs,
+        "10_tab_local_foodwebs.csv",
+        quote = FALSE,
+        row.names = FALSE
+      )
+
+      write.csv(
+        tab_local_foodweb_metrics,
+        "11_tab_local_foodweb_metrics.csv",
+        quote = FALSE,
+        row.names = FALSE
+      )
+    }
+
+
+    ## 9. Return
+    message("Done!")
+
+    invisible(
+      list(
+        trophic_species_size_classes = size_classes,
+        metaweb = tab_metaweb,
+        local_foodwebs = tab_local_foodwebs,
+        local_foodweb_metrics = tab_local_foodweb_metrics
+      )
+    )
+}

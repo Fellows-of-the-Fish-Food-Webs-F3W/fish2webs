@@ -10,7 +10,7 @@ size2webs(
   resource_diet_shift,
   fish_diet_shift,
   pred_win,
-  write_output = T,
+  write_output = FALSE,
   selected_operations = NULL
 )
 }
@@ -37,46 +37,39 @@ files in the working directory.}
 values. If provided, local food webs are built only for these operations.}
 }
 \value{
-A named list with four elements:
-\describe{
-\item{tab_size_classes}{A data frame of size-class boundaries for each
-species.}
-\item{tab_metaweb_flattened}{A flattened representation of the global
-metaweb.}
-\item{tab_local_foodwebs_flattened}{A flattened representation of all local
-food webs.}
-\item{tab_local_foodwebs_summary_metrics}{A data frame of summary network
-metrics for each local food web.}
+A named list containing four data frames:
+\itemize{
+\item \code{trophic_species_size_classes}: size-class boundaries defining
+trophic species.
+\item \code{metaweb}: flattened global metaweb.
+\item \code{local_foodwebs}: flattened local food webs.
+\item \code{local_foodweb_metrics}: food-web metrics for each sampling
+operation.
 }
 }
 \description{
 Constructs a size-based global metaweb and operation-specific local food
 webs from a table of individual fish size measurements.
 
-The full \code{ind_measure} dataset is used to build the metaweb. Local food webs
-are then extracted for each sampling operation represented in
-\code{ind_measure}, or for the subset specified by \code{selected_operations}.
+The complete individual-level dataset is used to define size classes and
+construct the global metaweb. Local food webs are then extracted for each
+sampling operation, or for a subset specified by \code{selected_operations}.
 
 Individuals are assigned to size classes, trophic species are inferred from
 species-specific diet shifts and predator-prey size constraints, and network
 metrics are computed for each local food web.
 }
 \details{
-The metaweb is always constructed from the full cleaned dataset, regardless
-of any \code{selected_operations} subset. The \code{selected_operations} argument only
-affects which local food webs are extracted and summarized.
+Individuals with missing species information are removed before constructing
+size classes and food webs.
 
-The function proceeds in four main stages:
-\enumerate{
-\item removes individuals with missing species information;
-\item computes size classes for all species present in the dataset;
-\item builds the global metaweb using diet-shift and size-constraint rules;
-\item extracts local food webs by operation and computes summary metrics.
-}
+Size classes and the global metaweb are always constructed from the complete
+cleaned dataset. \code{selected_operations} only determines which local food webs
+are extracted and summarized.
 
 If \code{write_output = TRUE}, the following files are written:
-\code{tab_size_classes.csv}, \code{tab_metaweb.csv}, \code{tab_local_foodwebs.csv}, and
-\code{tab_local_foodwebs_summary_metrics.csv}.
+\verb{8_tab_trophic_species_size_classes.csv}, \verb{9_tab_metaweb.csv},
+\verb{10_tab_local_foodwebs.csv}, and \verb{11_tab_local_foodweb_metrics.csv}.
 }
 \seealso{
 \code{\link[foodwebbuilder:compute_size_classes]{foodwebbuilder::compute_size_classes()}}, \code{\link[foodwebbuilder:build_metaweb]{foodwebbuilder::build_metaweb()}},
