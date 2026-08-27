@@ -4,40 +4,38 @@
 \alias{fish2size}
 \title{Generate validated individual fish size measurements from ASPE surveys}
 \usage{
-fish2size(write_output = F)
+fish2size(write_output = FALSE)
 }
 \arguments{
-\item{write_output}{Logical. If \code{TRUE}, writes the final individual-size
-table to \code{tab_fish_individual_size.csv} in the working directory.}
+\item{write_output}{Logical. If \code{TRUE}, writes the generated tables as CSV
+files in the working directory.}
 }
 \value{
-A data frame of validated individual fish size measurements, typically
-containing one row per individual.
+A named list containing five data frames:
+\itemize{
+\item \code{site_information}
+\item \code{operation_information}
+\item \code{fish_individual_size_weight}
+\item \code{community_metrics}
+\item \code{species_level_metrics}
+}
 }
 \description{
 Extracts, filters, cleans, and harmonises fish survey data from the ASPE
-database to produce a standardized table of individual fish sizes.
+database to generate the main fish-related tables of the F3W dataset.
 
 The workflow:
 \enumerate{
-\item extracts the required survey metadata and measurement tables;
-\item filters operations to retain only eligible sampling events;
-\item standardises species identifiers and length types;
+\item cleans and filters sampling operations and fish records;
+\item harmonises species codes and fish length measurements;
 \item converts fork length to total length when required;
-\item removes implausible measurements and outliers;
+\item removes biologically implausible measurements and outliers;
 \item validates batch-level records;
-\item reconstructs individual size measurements from the cleaned data.
+\item reconstructs individual fish sizes;
+\item converts individual lengths to body weights;
+\item computes community- and species-level metrics;
+\item generates site, operation, individual, and community tables.
 }
-
-The resulting table is suitable for downstream size-based ecological and
-food-web analyses.
-}
-\details{
-This function is designed as a cleaning and harmonisation pipeline for ASPE
-fish data. It retains only sampling operations matching the targeted
-protocols, applies species and length-type sanitation, and enforces
-biologically and structurally plausible measurements before returning a
-consolidated individual-size table.
 }
 \seealso{
 \code{\link[=size2webs]{size2webs()}}
