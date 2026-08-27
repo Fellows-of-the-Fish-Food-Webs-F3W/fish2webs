@@ -9,88 +9,81 @@
 #'
 #' @description
 #' Extracts, filters, cleans, and harmonises fish survey data from the ASPE
-#' database to produce a standardized table of individual fish sizes.
+#' database to generate the main fish-related tables of the F3W dataset.
 #'
 #' The workflow:
-#' 1. extracts the required survey metadata and measurement tables;
-#' 2. filters operations to retain only eligible sampling events;
-#' 3. standardises species identifiers and length types;
-#' 4. converts fork length to total length when required;
-#' 5. removes implausible measurements and outliers;
-#' 6. validates batch-level records;
-#' 7. reconstructs individual size measurements from the cleaned data.
+#' 1. cleans and filters sampling operations and fish records;
+#' 2. harmonises species codes and fish length measurements;
+#' 3. converts fork length to total length when required;
+#' 4. removes biologically implausible measurements and outliers;
+#' 5. validates batch-level records;
+#' 6. reconstructs individual fish sizes;
+#' 7. converts individual lengths to body weights;
+#' 8. computes community- and species-level metrics;
+#' 9. generates site, operation, individual, and community tables.
 #'
-#' The resulting table is suitable for downstream size-based ecological and
-#' food-web analyses.
-#'
-#' @param write_output Logical. If `TRUE`, writes the final individual-size
-#'   table to `tab_fish_individual_size.csv` in the working directory.
+#' @param write_output Logical. If `TRUE`, writes the generated tables as CSV
+#'   files in the working directory.
 #'
 #' @return
-#' A data frame of validated individual fish size measurements, typically
-#' containing one row per individual.
-#'
-#' @details
-#' This function is designed as a cleaning and harmonisation pipeline for ASPE
-#' fish data. It retains only sampling operations matching the targeted
-#' protocols, applies species and length-type sanitation, and enforces
-#' biologically and structurally plausible measurements before returning a
-#' consolidated individual-size table.
+#' A named list containing five data frames:
+#' \itemize{
+#'   \item `site_information`
+#'   \item `operation_information`
+#'   \item `fish_individual_size_weight`
+#'   \item `community_metrics`
+#'   \item `species_level_metrics`
+#' }
 #'
 #' @seealso [size2webs()]
 #'
 #' @export
-fish2size <- function(write_output = F){
+fish2size <- function(write_output = FALSE) {
 
-  ## 1. Initiate
-  message("Extracting metadata...")
-  ref_protocol <- get_ref_protocol_operation_aspe() |> as_tibble()
-  op_objective <- get_objective_operation_aspe() |> as_tibble()
-  sampling_point <- get_sampling_point_aspe() |> as_tibble()
-  op_description <- get_description_operation_aspe() |> as_tibble()
-  ref_isolation <- get_ref_isolation_operation_aspe() |> as_tibble()
-  raw_ref_species <- get_species_aspe() |> as_tibble()
+  ## 1. Prepare ASPE data
+  message("Preparing ASPE data...")
 
-  detail_sampling <- get_elementary_sampling_aspe() |> as_tibble()
-  ref_detail_sampling <- get_ref_elementary_sampling_aspe() |> as_tibble()
-  ref_prospection <- get_ref_prospection_method_operation_aspe() |> as_tibble()
-  ref_passage <- get_ref_passage_aspe() |> as_tibble()
+  species <- cleaning_species_ref_aspe() |>
+    tibble::as_tibble()
 
-  point_group <- get_point_group_aspe() |> as_tibble()
-  ref_point_group <- get_ref_point_group_aspe() |> as_tibble()
-
-  species <- cleaning_species_ref_aspe() |> as_tibble()
-
-  ref_batch_type <- get_ref_type_batch_aspe() |> as_tibble()
-  raw_fish_batch <- get_fish_batch_aspe() |> as_tibble()
-  raw_individual_measurement <- get_individual_measurement_aspe() |> as_tibble()
-  raw_ref_length <- get_ref_type_length_aspe() |> as_tibble()
-  ref_length <- cleaning_ref_length_type_aspe() |> as_tibble()
-
-  op <- clean_operation_aspe() %>%
-    as_tibble() %>%
-    filter(
-      protocol %in% c("complete", "partial_by_point", "partial_over_bank")
-    )
-
-  ele_sampling <- cleaning_elementary_sampling() |> as_tibble()
-  point_group <- cleaning_point_group()
-
-  fish_batch <- clean_fish_batch(fish_batch = raw_fish_batch)
-  ind_measure <- clean_individual_measurement_aspe(
-    ind_measure = raw_individual_measurement
+  station <- clean_station_aspe(
+    station = get_raw_station_aspe(),
+    ref_coordinates = get_raw_ref_coordinates_station_aspe(),
+    crs_to = 4326
   )
 
-  ## 2. Filter out operations
+  operation <- clean_operation_aspe() |>
+    tibble::as_tibble()
+
+  ele_sampling <- cleaning_elementary_sampling() |>
+    tibble::as_tibble()
+
+  point_group <- cleaning_point_group()
+
+  fish_batch <- get_fish_batch_aspe() |>
+    tibble::as_tibble() |>
+    clean_fish_batch()
+
+  ind_measure <- get_individual_measurement_aspe() |>
+    tibble::as_tibble() |>
+    clean_individual_measurement_aspe()
+
+
+  ## 2. Filter sampling operations
   message("Filtering sampling operations...")
+
   filtered_sampling <- filter_operation_batch_measure(
-    operation = op,
-    op_protocol_to_keep = c("complete", "partial_by_point",  "partial_over_bank"),
+    operation = operation,
+    op_protocol_to_keep = c(
+      "complete",
+      "partial_by_point",
+      "partial_over_bank"
+    ),
     op_objective_to_exclude = vec_op_objective_to_exclude(),
     oldest_sampling_date = "1995-01-01",
     omit_na_site = TRUE,
     point_group = point_group,
-    min_prop_point_group_on_bank = .999,
+    min_prop_point_group_on_bank = 0.999,
     ele_sampling = ele_sampling,
     max_passage_number = 1,
     fish_batch = fish_batch,
@@ -98,26 +91,23 @@ fish2size <- function(write_output = F){
   )
 
   ## TODO: adding fishbase validated names in cleaning_species_ref_aspe()
-  filtered_sampling[c("fish_batch", "ind_measure")] <-
-    filtered_sampling[c("fish_batch", "ind_measure")] |>
-    purrr::map(\(x) sanitize_species_code(data = x))
-  summary(as.factor(filtered_sampling$fish_batch$length_type))
-
-  ## 3. Harmonise length measurements
-  message("Harmonising fish length measurements...")
   species_fork_length <- filtered_sampling$fish_batch |>
-    filter(length_type == "fork") |>
-    distinct(species_code) |>
-    left_join(species,
-              by = join_by(species_code)
+    dplyr::filter(length_type == "fork") |>
+    dplyr::distinct(species_code) |>
+    dplyr::left_join(
+      species,
+      by = dplyr::join_by(species_code)
     )
-  ll <- rfishbase::length_length(species_list = species_fork_length$latin_name)
+
+  length_length <- rfishbase::length_length(
+    species_list = species_fork_length$latin_name
+  )
 
   sanitized_length_type <- convert_fork_to_total(
     fish_batch = filtered_sampling$fish_batch,
     ind_measure = filtered_sampling$ind_measure,
-    species_ref = cleaning_species_ref_aspe(),
-    fishbase_length_length = ll,
+    species_ref = species,
+    fishbase_length_length = length_length,
     conversion_vector = coefficients_fork2total(),
     convert_intercept_cm2mm = TRUE,
     manual_priority = FALSE,
@@ -131,14 +121,6 @@ fish2size <- function(write_output = F){
     remove_outliers = TRUE
   )
 
-  sanitized_length$outlier_summary |>
-    arrange(desc(n_outliers))
-  sanitized_length$outliers |>
-    filter(species_code == "HOT") |>
-    select(-c(operation_id:measure_id)) |>
-    arrange(desc(size)) |>
-    print(n = 200)
-
   sanitized <- sanitize_batch_data(
     fish_batch = sanitized_length$fish_batch,
     ind_measure = sanitized_length$ind_measure,
@@ -147,28 +129,166 @@ fish2size <- function(write_output = F){
     min_individuals_SL = 6
   )
 
-  sanitized$filtering_log
-  sanitized$validation_issues
-  sanitized$fish_batch |>
-    filter(min_length == max_length) |>
-    select(batch_type, min_length, max_length, number)
-  sanitized$fish_batch |>
-    filter(batch_type == "G") |>
-    filter(is.na(min_length) | is.na(max_length))
+
+  ## 4. Generate individual fish data
+  message("Generating individual fish sizes and weights...")
+
+  fish_individual_size <- generate_individual_sizes(
+    sanitized,
+    verbose = TRUE
+  )
+
+  fish_individual_weight <- convert_length_to_weight(
+    fish_data = fish_individual_size,
+    species_ref = species,
+    verbose = TRUE
+  )
 
 
-  ## 4. Final file
-  message("Generating final length measurements...")
-  fish_individual_size <- generate_individual_sizes(sanitized, verbose = TRUE)
-  if (write_output == T){
+  ## 5. Compute community metrics
+  message("Computing community metrics...")
+
+  community_metrics <- compute_community_metrics(
+    fish_data = fish_individual_weight$fish_data,
+    operation = filtered_sampling$operation
+  )
+
+
+  ## 6. Generate output tables
+  retained_operations <- unique(fish_individual_weight$fish_data$operation_id)
+
+  tab3 <- filtered_sampling$operation |>
+    dplyr::filter(operation_id %in% retained_operations) |>
+    dplyr::distinct(site_id) |>
+    dplyr::inner_join(
+      station |>
+        dplyr::select(site_id, x, y),
+      by = "site_id"
+    ) |>
+    dplyr::arrange(site_id)
+
+  tab4 <- filtered_sampling$operation |>
+    dplyr::filter(operation_id %in% retained_operations) |>
+    dplyr::mutate(
+      time = format(date_time, "%H:%M:%S")
+    ) |>
+    dplyr::select(
+      operation_id,
+      site_id,
+      date,
+      time,
+      protocol,
+      computed_surface
+    ) |>
+    dplyr::arrange(operation_id)
+
+  tab5 <- fish_individual_weight$fish_data |>
+    dplyr::select(
+      operation_id,
+      species_code,
+      size_mm,
+      measured,
+      weight_g
+    )
+
+  tab6 <- community_metrics |>
+    dplyr::select(
+      operation_id,
+      total_richness,
+      total_abundance,
+      total_biomass_g,
+      richness_per_m2,
+      abundance_per_m2,
+      biomass_g_per_m2
+    )
+
+  tab7_abundance <- community_metrics |>
+    dplyr::select(
+      operation_id,
+      abundance_by_species
+    ) |>
+    tidyr::unnest(abundance_by_species)
+
+  tab7_biomass <- community_metrics |>
+    dplyr::select(
+      operation_id,
+      biomass_by_species
+    ) |>
+    tidyr::unnest(biomass_by_species)
+
+  tab7 <- tab7_abundance |>
+    dplyr::left_join(
+      tab7_biomass,
+      by = c("operation_id", "species_code")
+    ) |>
+    dplyr::select(
+      operation_id,
+      species_code,
+      total_abundance,
+      abundance_per_m2,
+      total_biomass_g,
+      biomass_g_per_m2
+    ) |>
+    dplyr::arrange(
+      operation_id,
+      species_code
+    )
+
+
+  ## 7. Write outputs
+  if (write_output) {
+
     message("Writing outputs...")
-    write.csv(fish_individual_size, "tab_fish_individual_size.csv", quote = F, row.names = F)
+
+    write.csv(
+      tab3,
+      "3_tab_site_information.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
+
+    write.csv(
+      tab4,
+      "4_tab_operation_information.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
+
+    write.csv(
+      tab5,
+      "5_tab_fish_individual_size_weight.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
+
+    write.csv(
+      tab6,
+      "6_tab_community_metrics.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
+
+    write.csv(
+      tab7,
+      "7_tab_species_level_metrics.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
   }
 
-  ## End
-  message("Done!")
-  return(fish_individual_size)
 
+  ## 8. Return
+  message("Done!")
+
+  invisible(
+    list(
+      site_information = tab3,
+      operation_information = tab4,
+      fish_individual_size_weight = tab5,
+      community_metrics = tab6,
+      species_level_metrics = tab7
+    )
+  )
 }
 
 #' Build size-structured food webs from individual fish sizes
@@ -296,18 +416,18 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
   ## Write output
   if (write_output == T){
     message("Writing outputs...")
-    write.csv(size_classes, "tab_size_classes.csv", quote=F, row.names=F)
-    write.csv(tab_metaweb_flattened, "tab_metaweb.csv", quote=F, row.names=F)
-    write.csv(tab_local_foodwebs_flattened, "tab_local_foodwebs.csv", quote=F, row.names=F)
-    write.csv(tab_local_foodweb_summary_metrics, "tab_local_foodwebs_summary_metrics.csv", quote=F, row.names=F)
+    write.csv(size_classes, "8_tab_trophic_species_size_classes.csv", quote=F, row.names=F)
+    write.csv(tab_metaweb_flattened, "9_tab_metaweb.csv", quote=F, row.names=F)
+    write.csv(tab_local_foodwebs_flattened, "10_tab_local_foodwebs.csv", quote=F, row.names=F)
+    write.csv(tab_local_foodweb_summary_metrics, "11_tab_local_foodweb_metrics.csv", quote=F, row.names=F)
   }
 
   ## End
   message("Done!")
-  return(list("tab_size_classes" = size_classes,
+  return(list("tab_trophic_species_size_classes" = size_classes,
               "tab_metaweb_flattened" = tab_metaweb_flattened,
               "tab_local_foodwebs_flattened" = tab_local_foodwebs_flattened,
-              "tab_local_foodwebs_summary_metrics" = tab_local_foodweb_summary_metrics
+              "tab_local_foodwebs_metrics" = tab_local_foodweb_summary_metrics
     )
   )
 }
