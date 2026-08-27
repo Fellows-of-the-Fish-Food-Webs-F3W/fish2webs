@@ -46,11 +46,8 @@ fish2size <- function(write_output = FALSE) {
   species <- cleaning_species_ref_aspe() |>
     tibble::as_tibble()
 
-  station <- clean_station_aspe(
-    station = get_raw_station_aspe(),
-    ref_coordinates = get_raw_ref_coordinates_station_aspe(),
-    crs_to = 4326
-  )
+  ref_length <- cleaning_ref_length_type_aspe() |>
+    tibble::as_tibble()
 
   operation <- clean_operation_aspe() |>
     tibble::as_tibble()
@@ -60,13 +57,15 @@ fish2size <- function(write_output = FALSE) {
 
   point_group <- cleaning_point_group()
 
-  fish_batch <- get_fish_batch_aspe() |>
-    tibble::as_tibble() |>
-    clean_fish_batch()
+  fish_batch <- clean_fish_batch()
 
-  ind_measure <- get_individual_measurement_aspe() |>
-    tibble::as_tibble() |>
-    clean_individual_measurement_aspe()
+  ind_measure <- clean_individual_measurement_aspe()
+
+  station <- clean_station_aspe(
+    station = get_raw_station_aspe(),
+    ref_coordinates = get_raw_ref_coordinates_station_aspe(),
+    crs_to = 4326
+  )
 
 
   ## 2. Filter sampling operations
