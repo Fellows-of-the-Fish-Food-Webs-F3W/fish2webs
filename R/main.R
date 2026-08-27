@@ -89,7 +89,14 @@ fish2size <- function(write_output = FALSE) {
     ind_measure = ind_measure
   )
 
-  ## TODO: adding fishbase validated names in cleaning_species_ref_aspe()
+  # Harmonise species codes in batch and individual-measurement data.
+  filtered_sampling[c("fish_batch", "ind_measure")] <-
+    filtered_sampling[c("fish_batch", "ind_measure")] |>
+    purrr::map(\(x) sanitize_species_code(data = x))
+
+
+  ## 3. Harmonise length measurements
+  message("Cleaning and harmonising fish length measurements...")
   species_fork_length <- filtered_sampling$fish_batch |>
     dplyr::filter(length_type == "fork") |>
     dplyr::distinct(species_code) |>
@@ -105,7 +112,7 @@ fish2size <- function(write_output = FALSE) {
   sanitized_length_type <- convert_fork_to_total(
     fish_batch = filtered_sampling$fish_batch,
     ind_measure = filtered_sampling$ind_measure,
-    species_ref = species,
+    species_ref = cleaning_species_ref_aspe(),
     fishbase_length_length = length_length,
     conversion_vector = coefficients_fork2total(),
     convert_intercept_cm2mm = TRUE,
