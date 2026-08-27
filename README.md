@@ -129,19 +129,22 @@ head(web_outputs$local_foodweb_metrics)
 ```
 
 
-# Example: fish size distributions
+# Examples
+## Fish size distributions
 
-Visualise size distributions for selected species.
+Visualise individual body-size distributions for selected fish species.
 
 ```r
 d <- 4
 
+fish_data <- fish_outputs$fish_individual_size_weight
+
 unique_species_codes <- unique(
-  fish_individual_size$fish_individual_size_weight$species_code
+  fish_data$species_code
 )
 
 xlim <- range(
-  fish_individual_size$fish_individual_size_weight$size_mm,
+  fish_data$size_mm,
   na.rm = TRUE
 )
 
@@ -151,12 +154,12 @@ par(
   oma = c(2, 0, 2, 0)
 )
 
-for (i in seq_len(d^2)) {
+for (i in seq_len(min(d^2, length(unique_species_codes)))) {
 
-  sizes <- fish_individual_size$fish_individual_size_weight[
-    fish_individual_size$fish_individual_size_weight$species_code ==
-      unique_species_codes[i],
-    "size_mm"
+  species_code <- unique_species_codes[i]
+
+  sizes <- fish_data$size_mm[
+    fish_data$species_code == species_code
   ]
 
   hist(
@@ -165,10 +168,7 @@ for (i in seq_len(d^2)) {
     xlim = xlim,
     col = "lightblue",
     border = "white",
-    main = paste(
-      "Species:",
-      unique_species_codes[i]
-    ),
+    main = paste("Species:", species_code),
     xlab = "",
     ylab = "Count"
   )
@@ -185,19 +185,23 @@ par(mfrow = c(1, 1))
 
 ---
 
-# Example: analyse the global metaweb
+## Analyse the global metaweb
 
-Reconstruct the metaweb and compute structural metrics.
+The flattened global metaweb returned by `size2webs()` can be reconstructed as an adjacency matrix for further network analyses.
 
 ```r
 metaweb <- unflatten_foodweb(
-  outputs$tab_metaweb_flattened
+  web_outputs$metaweb
 )
+```
 
+Compute structural and trophic properties of the global metaweb:
+
+```r
 basal_nodes <- get_basal_nodes(metaweb)
-leaf_nodes  <- get_leaf_nodes(metaweb)
+leaf_nodes <- get_leaf_nodes(metaweb)
 
-degree_in  <- compute_inward_degree(metaweb)
+degree_in <- compute_inward_degree(metaweb)
 degree_out <- compute_outward_degree(metaweb)
 
 TL <- compute_trophic_level(metaweb)
@@ -210,7 +214,7 @@ TB <- compute_trophic_breadth(
 fluxes <- compute_bottom_up_fluxes(metaweb)
 ```
 
-Visualise trophic structure:
+Visualise the trophic structure of the global metaweb:
 
 ```r
 plot_network(
@@ -225,31 +229,44 @@ plot_network(
 
 ---
 
-# Example: analyse a local food web
+## Analyse a local food web
 
-Select one operation and reconstruct its local food web.
+Select one sampling operation from the flattened local food-web table:
 
 ```r
-local_foodwebs <-
-  outputs$tab_local_foodwebs_flattened
+local_foodwebs <- web_outputs$local_foodwebs
 
-s <- which(
-  local_foodwebs$operation_id ==
-    unique(local_foodwebs$operation_id)[100]
-)
+operation_id <- unique(
+  local_foodwebs$operation_id
+)[100]
 
+local_foodweb_data <- local_foodwebs |>
+  dplyr::filter(
+    operation_id == !!operation_id
+  ) |>
+  dplyr::select(
+    prey,
+    consumer,
+    interaction
+  )
+```
+
+Reconstruct the corresponding local food web:
+
+```r
 local_foodweb <- unflatten_foodweb(
-  local_foodwebs[s, ]
+  local_foodweb_data
 )
 ```
 
-Compute structural metrics:
+
+Compute structural and trophic properties:
 
 ```r
 basal_nodes <- get_basal_nodes(local_foodweb)
-leaf_nodes  <- get_leaf_nodes(local_foodweb)
+leaf_nodes <- get_leaf_nodes(local_foodweb)
 
-degree_in  <- compute_inward_degree(local_foodweb)
+degree_in <- compute_inward_degree(local_foodweb)
 degree_out <- compute_outward_degree(local_foodweb)
 
 TL <- compute_trophic_level(local_foodweb)
@@ -285,16 +302,19 @@ ASPE surveys
       ▼
 fish2size()
       │
-      ▼
-Individual fish sizes
+      ├── Site information
+      ├── Sampling-operation information
+      ├── Individual fish sizes and weights
+      ├── Community-level metrics
+      └── Species-level metrics
       │
       ▼
 size2webs()
       │
-      ├── Size classes
+      ├── Trophic-species size classes
       ├── Global metaweb
       ├── Local food webs
-      └── Food-web metrics
+      └── Local food-web metrics
 ```
 
 ---
