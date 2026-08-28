@@ -464,7 +464,7 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
         operation_id,
         S,
         L,
-        L/S,
+        `L/S`,
         C,
         meanTL,
         maxTL,
