@@ -112,7 +112,7 @@ fish2size <- function(write_output = FALSE) {
   sanitized_length_type <- convert_fork_to_total(
     fish_batch = filtered_sampling$fish_batch,
     ind_measure = filtered_sampling$ind_measure,
-    species_ref = cleaning_species_ref_aspe(),
+    species_ref = species,
     fishbase_length_length = length_length,
     conversion_vector = coefficients_fork2total(),
     convert_intercept_cm2mm = TRUE,
@@ -189,6 +189,15 @@ fish2size <- function(write_output = FALSE) {
     dplyr::arrange(operation_id)
 
   tab3 <- fish_individual_weight$fish_data |>
+    dplyr::distinct(species_code) |>
+    dplyr::left_join(
+      species |>
+        dplyr::select(species_code, latin_name),
+      by = "species_code"
+    ) |>
+    dplyr::arrange(species_code)
+
+  tab4 <- fish_individual_weight$fish_data |>
     dplyr::select(
       operation_id,
       species_code,
@@ -197,7 +206,7 @@ fish2size <- function(write_output = FALSE) {
       weight_g
     )
 
-  tab4 <- community_metrics |>
+  tab5 <- community_metrics |>
     dplyr::select(
       operation_id,
       total_richness,
@@ -208,23 +217,23 @@ fish2size <- function(write_output = FALSE) {
       biomass_g_per_m2
     )
 
-  tab5_abundance <- community_metrics |>
+  tab6_abundance <- community_metrics |>
     dplyr::select(
       operation_id,
       abundance_by_species
     ) |>
     tidyr::unnest(abundance_by_species)
 
-  tab5_biomass <- community_metrics |>
+  tab6_biomass <- community_metrics |>
     dplyr::select(
       operation_id,
       biomass_by_species
     ) |>
     tidyr::unnest(biomass_by_species)
 
-  tab5 <- tab5_abundance |>
+  tab6 <- tab6_abundance |>
     dplyr::left_join(
-      tab5_biomass,
+      tab6_biomass,
       by = c("operation_id", "species_code")
     ) |>
     dplyr::select(
@@ -262,21 +271,28 @@ fish2size <- function(write_output = FALSE) {
 
     write.csv(
       tab3,
-      "3_tab_fish_individual_size_weight.csv",
+      "3_tab_species_information.csv",
       quote = FALSE,
       row.names = FALSE
     )
 
     write.csv(
       tab4,
-      "4_tab_community_metrics.csv",
+      "4_tab_fish_individual_size_weight.csv",
       quote = FALSE,
       row.names = FALSE
     )
 
     write.csv(
       tab5,
-      "5_tab_species_level_metrics.csv",
+      "5_tab_community_metrics.csv",
+      quote = FALSE,
+      row.names = FALSE
+    )
+
+    write.csv(
+      tab6,
+      "6_tab_species_level_metrics.csv",
       quote = FALSE,
       row.names = FALSE
     )
@@ -290,9 +306,10 @@ fish2size <- function(write_output = FALSE) {
     list(
       site_information = tab1,
       operation_information = tab2,
-      fish_individual_size_weight = tab3,
-      community_metrics = tab4,
-      species_level_metrics = tab5
+      species_information = tab3,
+      fish_individual_size_weight = tab4,
+      community_metrics = tab5,
+      species_level_metrics = tab6
     )
   )
 }
@@ -467,28 +484,28 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
 
       write.csv(
         size_classes,
-        "8_tab_trophic_species_size_classes.csv",
+        "9_tab_trophic_species_size_classes.csv",
         quote = FALSE,
         row.names = FALSE
       )
 
       write.csv(
         tab_metaweb,
-        "9_tab_metaweb.csv",
+        "10_tab_metaweb.csv",
         quote = FALSE,
         row.names = FALSE
       )
 
       write.csv(
         tab_local_foodwebs,
-        "10_tab_local_foodwebs.csv",
+        "11_tab_local_foodwebs.csv",
         quote = FALSE,
         row.names = FALSE
       )
 
       write.csv(
         tab_local_foodweb_metrics,
-        "11_tab_local_foodweb_metrics.csv",
+        "12_tab_local_foodweb_metrics.csv",
         quote = FALSE,
         row.names = FALSE
       )
