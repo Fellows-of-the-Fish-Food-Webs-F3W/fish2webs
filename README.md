@@ -64,7 +64,7 @@ fish_individual_size <- fish2size(write_output = FALSE)
 For example, the individual-level dataset used to construct the food webs can be accessed with:
 
 ```r
-head(fish_outputs$fish_individual_size_weight)
+head(fish_individual_size$fish_individual_size_weight)
 ```
 
 ---
@@ -79,12 +79,12 @@ For demonstration purposes, local food webs can be generated for a limited numbe
 
 ```r
 selected_operations <- unique(
-  fish_outputs$fish_individual_size_weight$operation_id
+  fish_individual_size$fish_individual_size_weight$operation_id
 )[1:100]
 
 web_outputs <- size2webs(
   num_classes = 3,
-  ind_measure = fish_outputs$fish_individual_size_weight,
+  ind_measure = fish_individual_size$fish_individual_size_weight,
   resource_diet_shift = resource_diet_shift,
   fish_diet_shift = fish_diet_shift,
   pred_win = pred_win,
@@ -102,7 +102,7 @@ To generate local food webs for all sampling operations:
 ```r
 web_outputs <- size2webs(
   num_classes = 9,
-  ind_measure = fish_outputs$fish_individual_size_weight,
+  ind_measure = fish_individual_size$fish_individual_size_weight,
   resource_diet_shift = resource_diet_shift,
   fish_diet_shift = fish_diet_shift,
   pred_win = pred_win,
@@ -138,7 +138,7 @@ Visualise individual body-size distributions for selected fish species.
 ```r
 d <- 4
 
-fish_data <- fish_outputs$fish_individual_size_weight
+fish_data <- fish_individual_size$fish_individual_size_weight
 
 unique_species_codes <- unique(
   fish_data$species_code
