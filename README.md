@@ -56,6 +56,7 @@ fish_individual_size <- fish2size(write_output = FALSE)
 |---|---|
 | `site_information` | Sampling-site information, including site identifiers and geographic coordinates (longitude and latitude) |
 | `operation_information` | Sampling-operation information, including operation and site identifiers, sampling date and time, fishing protocol, and sampled surface area |
+| `species_information` | Fish species recorded in the dataset, with species codes and corresponding scientific names |
 | `fish_individual_size_weight` | Individual fish records with operation and species identifiers, total body length, measurement status (measured or reconstructed), and body mass estimated from species-specific length–weight relationships |
 | `community_metrics` | Operation-level fish species richness, abundance, and estimated biomass, provided as total values and standardized by sampled surface area |
 | `species_level_metrics` | Species-level abundance and estimated biomass for each sampling operation, provided as total values and standardized by sampled surface area |
@@ -304,6 +305,7 @@ fish2size()
       │
       ├── Site information
       ├── Sampling-operation information
+      ├── Species information
       ├── Individual fish sizes and weights
       ├── Community-level metrics
       └── Species-level metrics
