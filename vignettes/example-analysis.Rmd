@@ -1,0 +1,339 @@
+---
+title: "Example analysis of fish community size and trophic structure"
+author: "Fellows of the Fish Food Webs - F3W"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Example analysis of fish community size and trophic structure}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\usepackage[utf8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Overview
+
+This vignette provides an initial worked example of the main `fish2webs`
+workflow. It follows the analysis developed in
+`dev/example-analysis-2026-08-20-1.R` and is intentionally kept close to that
+script. The plotting code and its current formatting are retained.
+
+The analysis covers:
+
+- generation of cleaned individual fish size and weight data;
+- exploration of sampling frequency and species abundance at a selected site;
+- visualisation of fish-size distributions; and
+- construction and visualisation of metawebs and local food webs.
+
+The complete workflow can be computationally demanding because the survey data
+and trophic information are loaded from the companion packages.
+
+# Setup
+
+```{r packages, message=FALSE}
+library(fish2webs)
+library(fishdatabuilder)
+library(foodwebbuilder)
+library(dplyr)
+library(tibble)
+```
+
+The development analysis defines the following helper for plotting food webs.
+It is reproduced here without changing its plotting parameters.
+
+```{r plotting-helper, eval=FALSE}
+plot_network <- function (M, x = NULL, y = NULL, labels = NULL, xlab = "", ylab = "",
+                  line_width_max = 1, label_space_x = 0.05, add_legend = "topright",
+                  cex.dots = 2, cex.text = 1.5)
+{
+  d = dim(M)[1]
+  if (is.null(labels) == T)
+    labels = 1:d
+  if (is.null(x) == T)
+    x = cos((1:d)/0.25)
+  if (is.null(y) == T)
+    y = sin((1:d)/0.25)
+  delta_x = (max(x) - min(x)) * label_space_x
+  plot(x, y, xlim = c(min(x) - delta_x, max(x) + delta_x * 1.5),
+       cex = 0, bty = "n", xlab = xlab, ylab = ylab, cex.lab = 1.5,
+       bty = "l")
+  for (j in 1:ncol(M)) {
+    color_ = rainbow(ncol(M))[j]
+    for (i in 1:nrow(M)) {
+      line_width = abs(M[i, j])/max(abs(M)) * line_width_max
+      lines(x = c(x[i], x[j] - delta_x/2), y = c(y[i], y[j]),
+            col = color_, lwd = line_width)
+    }
+  }
+  points(x - delta_x/2, y, pch = 1, cex = cex.dots)
+  points(x, y, pch = 16, cex = cex.dots)
+  text(x + delta_x, y, labels = labels, cex = cex.text)
+  if (add_legend != "off") {
+    legend(add_legend, legend = c("Ingoing effects", "Outgoing effects"),
+           pch = c(1, 16), col = c("black", "black"), cex = 1.5,
+           bg = "white", box.col = "white")
+  }
+}
+```
+
+Load the trophic data required to construct the food webs.
+
+```{r trophic-data}
+data(resource_diet_shift, package = "foodwebbuilder")
+data(fish_diet_shift, package = "foodwebbuilder")
+data(pred_win, package = "foodwebbuilder")
+```
+
+# Generate fish size and weight data
+
+`fish2size()` extracts and cleans the ASPE survey data, reconstructs individual
+fish sizes where necessary, estimates body mass, and computes community- and
+species-level metrics.
+
+```{r fish2size, eval=FALSE}
+fish_individual_size <- fish2size(write_output = FALSE)
+```
+
+The following object is used in the analyses below. The operation table is
+joined to retain the site identifier for each individual fish record.
+
+```{r prepare-data, eval=FALSE}
+fish_data <- fish_individual_size$fish_individual_size_weight |>
+  left_join(
+    fish_individual_size$operation_information |>
+      select(operation_id, site_id, date),
+    by = "operation_id"
+  )
+```
+
+# Sampling frequency across sites
+
+The number of operations associated with each site can be joined to the site
+coordinates and plotted as point sizes. This is the starting point for the
+multi-site view used in the accompanying paper.
+
+```{r sampling-frequency, eval=FALSE}
+site_sampling_frequency <- fish_individual_size$operation_information |>
+  distinct(operation_id, site_id) |>
+  count(site_id, name = "n_operations") |>
+  left_join(
+    fish_individual_size$site_information,
+    by = "site_id"
+  )
+
+plot(
+  site_sampling_frequency$x,
+  site_sampling_frequency$y,
+  cex = site_sampling_frequency$n_operations,
+  pch = 16,
+  xlab = "x coordinate",
+  ylab = "y coordinate"
+)
+```
+
+# Single-site community patterns
+
+For the exploratory analysis, select one site and retain all of its operations.
+The index below follows the current development script and can be changed when
+using the vignette.
+
+```{r select-site, eval=FALSE}
+site_id_ <- fish_data$site_id[9000]
+site_fish_data <- fish_data[
+  fish_data$site_id == site_id_,
+]
+```
+
+## Species abundance through time
+
+The following code counts individuals by species and operation, orders the
+operations by date, and converts the counts to proportional abundance.
+
+```{r abundance-time-series, eval=FALSE}
+selected_species <- sort(unique(site_fish_data$species_code))
+unique_op_ids <- unique(site_fish_data$operation_id)
+
+res <- NULL
+for (unique_op_ids_ in unique_op_ids) {
+  site_fish_data_ <- site_fish_data[
+    site_fish_data$operation_id == unique_op_ids_,
+  ]
+  res_ <- NULL
+  for (selected_species_ in selected_species) {
+    individual_count <- length(which(
+      site_fish_data_$species_code == selected_species_
+    ))
+    res_ <- c(res_, individual_count)
+  }
+  res <- rbind(res, res_)
+}
+
+tab_species_abundances <- data.frame(res)
+colnames(tab_species_abundances) <- selected_species
+
+operation_dates <- fish_individual_size$operation_information |>
+  filter(operation_id %in% unique_op_ids) |>
+  distinct(operation_id, date)
+times <- operation_dates$date[match(unique_op_ids, operation_dates$operation_id)]
+times <- as.Date(times)
+times <- as.numeric(times - min(times))
+s <- order(times)
+x <- times[s] / 365
+y <- tab_species_abundances[s, ]
+```
+
+The stacked-area plot below retains the formatting used in the development
+analysis.
+
+```{r proportional-abundance-plot, eval=FALSE}
+pdf(file = "plot-single-site-abundances.pdf", width = 5, height = 4)
+par(mar = c(5, 5, 1, 1), xpd = TRUE, mfrow = c(1, 1), bty = "l")
+
+sp <- selected_species
+p <- as.matrix(y[, sp])
+p <- p / rowSums(p)
+cp <- t(apply(p, 1, cumsum))
+plot(x, x,
+     type = "n",
+     ylim = c(0, 1),
+     xlab = "Time (years)",
+     ylab = "Proportion",
+     axes = FALSE)
+cols <- rainbow(length(sp), start = 0.0, end = 0.8, alpha = 0.75)
+for (i in seq_along(sp)) {
+  lower <- if (i == 1) rep(0, length(x)) else cp[, i - 1]
+  upper <- cp[, i]
+  polygon(c(x, rev(x)),
+          c(lower, rev(upper)),
+          col = cols[i],
+          border = NA)
+}
+axis(1)
+axis(2, las = 1)
+box()
+dev.off()
+```
+
+# Fish-size distributions
+
+The following is the all-species size-distribution analysis from the
+development script. Species can be restricted before this section when a
+focused analysis is required.
+
+```{r size-distributions, eval=FALSE}
+d <- 4
+unique_species_codes <- unique(fish_data$species_code)
+xlim <- range(fish_data$size_mm, na.rm = TRUE)
+
+par(
+  mfrow = c(d, d),
+  mar = c(3, 4, 2, 1),
+  oma = c(2, 0, 2, 0)
+)
+
+for (i in seq_len(d^2)) {
+  sizes <- fish_data[
+    fish_data$species_code == unique_species_codes[i],
+    "size_mm"
+  ]
+
+  hist(
+    sizes,
+    breaks = 20,
+    xlim = xlim,
+    col = "lightblue",
+    border = "white",
+    main = paste("Species:", unique_species_codes[i]),
+    xlab = if (i == d) "Size (mm)" else "",
+    ylab = "Count"
+  )
+}
+
+mtext("Fish size distributions by species", outer = TRUE, cex = 1.4)
+par(mfrow = c(1, 1))
+```
+
+## Total species counts
+
+```{r species-counts, eval=FALSE}
+pdf(file = "plot-single-site-counts.pdf", width = 2.5, height = 4)
+par(mar = c(5, 5, 1, 1), xpd = TRUE, mfrow = c(1, 1), bty = "l")
+res <- table(site_fish_data$species_code)
+colors <- rainbow(length(res), start = 0.0, end = 0.8, alpha = 0.75)
+barplot(res, horiz = TRUE, las = 1, col = colors,
+        xlab = "Total count", cex.names = 0.7)
+dev.off()
+```
+
+# Food webs
+
+The food-web workflow assigns fish to species-specific size classes, builds a
+global metaweb, and extracts local food webs for individual operations.
+
+```{r size2webs, eval=FALSE}
+web_outputs <- size2webs(
+  num_classes = 9,
+  ind_measure = fish_individual_size$fish_individual_size_weight,
+  resource_diet_shift = resource_diet_shift,
+  fish_diet_shift = fish_diet_shift,
+  pred_win = pred_win,
+  write_output = FALSE
+)
+```
+
+## Global metaweb
+
+```{r metaweb, eval=FALSE}
+metaweb <- unflatten_foodweb(web_outputs$metaweb)
+TL <- compute_trophic_level(metaweb)
+TB <- compute_trophic_breadth(metaweb, TL)
+
+plot_network(
+  metaweb,
+  x = TB,
+  y = TL,
+  labels = colnames(metaweb),
+  xlab = "Trophic breadth (sd of resource TL)",
+  ylab = "Trophic level",
+  add_legend = "bottomright",
+  label_space_x = 0.10
+)
+```
+
+## Local food webs
+
+One operation can be selected and its local food web reconstructed as follows.
+The current development analysis repeats this procedure for operations through
+time; two selected years can subsequently be passed to the same code when
+assembling the paper figure.
+
+```{r local-foodweb, eval=FALSE}
+local_foodwebs <- web_outputs$local_foodwebs
+operation_id_ <- unique(local_foodwebs$operation_id)[100]
+local_foodweb_data <- local_foodwebs |>
+  filter(operation_id == operation_id_) |>
+  select(prey, consumer, interaction)
+local_foodweb <- unflatten_foodweb(local_foodweb_data)
+
+TL <- compute_trophic_level(local_foodweb)
+TB <- compute_trophic_breadth(local_foodweb, TL)
+
+plot_network(
+  local_foodweb,
+  x = TB,
+  y = TL,
+  labels = colnames(local_foodweb),
+  xlab = "Trophic breadth (sd of resource TL)",
+  ylab = "Trophic level",
+  add_legend = "bottomright",
+  label_space_x = 0.10
+)
+```
+
+Resource nodes are part of the inferred network structure, but no empirical
+fish biomass is available for them. They should therefore be assigned `NA`
+when node biomass is added to the food-web outputs.
