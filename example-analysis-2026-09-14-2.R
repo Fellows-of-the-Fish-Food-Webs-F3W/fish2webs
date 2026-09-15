@@ -29,6 +29,7 @@ if (INSTALL == TRUE){
 
 ## Load library
 library(fish2webs)
+par(family = "mono")
 
 ## Load data
 data(resource_diet_shift, package = "foodwebbuilder")
@@ -500,7 +501,11 @@ for (k in 1:length(unique_op_ids)){
   # )
   
   ##
-  legend("bottomright", legend = paste("t =",round(times[order_[k]]/365),"years"), bty="n", cex=1.5)
+  legend("bottomright", legend = c(
+    paste("t =", round(times[order_[k]]/365), "years"),
+    paste("mean TL =", round(mean(TL), 2)),
+    paste("max TL =", round(max(TL), 2))
+  ), bty="n", cex=1.5)
   # legend(-0.55, -0.25, legend = paste("t =",round(times[order_[k]]/365),"years"), bty="n", cex=2)
   
   ##
