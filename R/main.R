@@ -393,7 +393,6 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
     )
 
 
-
     ## 3. Compute metaweb
     message("Building metaweb...")
     selected_resources <- c(
@@ -446,7 +445,32 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
       dplyr::bind_rows(.id = "operation_id")
 
 
-    ## 7. Flatten food webs
+    ## 7. Compute trophic-species-level metrics
+    message("Computing trophic species level metrics...")
+    tab_trophic_species_level_metrics <- lapply(
+      names(local_foodwebs),
+      function(operation_id) {
+        ind_operation <- ind_clean |>
+          dplyr::filter(
+            operation_id == .env$operation_id
+            )
+
+        node_metrics <- compute_node_metrics(
+          M = local_foodwebs[[operation_id]],
+          ind_measure = ind_operation,
+          tab_size_classes = size_classes
+          )
+
+        node_metrics |>
+          dplyr::mutate(
+            operation_id = operation_id,
+            .before = 1
+            )
+        }
+      ) |> dplyr::bind_rows()
+
+
+    ## 8. Flatten food webs
     message("Flattening food webs for storage...")
 
     tab_metaweb <- flatten_foodweb(metaweb)
@@ -476,8 +500,22 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
         fracInt
       )
 
+    tab_trophic_species_level_metrics <- tab_trophic_species_level_metrics |>
+      dplyr::select(
+        operation_id,
+        trophic_species,
+        abundance,
+        biomass_g,
+        in_degree,
+        out_degree,
+        degree,
+        TL,
+        TB,
+        OI
+        )
 
-    ## 8. Write outputs
+
+    ## 9. Write outputs
     if (write_output) {
 
       message("Writing outputs...")
@@ -509,7 +547,14 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
         quote = FALSE,
         row.names = FALSE
       )
-    }
+
+      write.csv(
+        tab_trophic_species_level_metrics,
+        "13_tab_trophic_species_level_metrics.csv",
+        quote = FALSE,
+        row.names = FALSE
+      )
+      }
 
 
     ## 9. Return
@@ -520,7 +565,8 @@ size2webs <- function(num_classes, ind_measure, resource_diet_shift, fish_diet_s
         trophic_species_size_classes = size_classes,
         metaweb = tab_metaweb,
         local_foodwebs = tab_local_foodwebs,
-        local_foodweb_metrics = tab_local_foodweb_metrics
+        local_foodweb_metrics = tab_local_foodweb_metrics,
+        trophic_species_level_metrics = tab_trophic_species_level_metrics
       )
     )
 }
