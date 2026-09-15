@@ -29,7 +29,7 @@ if (INSTALL == TRUE){
 
 ## Load library
 library(fish2webs)
-par(family = "mono")
+par(family = "sans")
 
 ## Load data
 data(resource_diet_shift, package = "foodwebbuilder")
@@ -252,7 +252,7 @@ plot_network <- function (M, x = NULL, y = NULL, labels = NULL, xlab = "", ylab 
     y = sin((1:d)/0.25)
   delta_x = (max(x) - min(x)) * label_space_x
   plot(x, y, xlim = c(min(x) - delta_x, max(x) + delta_x * 
-                        1.5), cex = 0, bty = "n", xlab = xlab, ylab = ylab, cex.lab = 1.5, 
+                        1.5), cex = 0, bty = "n", xlab = xlab, ylab = ylab, 
        bty = "l")
   for (j in 1:ncol(M)) {
     color_ = rainbow(ncol(M))[j]
@@ -312,18 +312,20 @@ site_ind_measure <- tab_fish_individual_size_weight_single_site
 
 ## Figure: Single site species counts
 pdf(file="plot-single-site-counts.pdf", width=2.5, height=4)
-par(mar = c(5, 5, 1, 1), xpd = TRUE, mfrow=c(1,1), bty="l")
+par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
 #
 ## Counts
 res <- table(site_ind_measure$species_code)
 colors <- rainbow(length(res), start = 0.0, end = 0.8, alpha=1.0)
-barplot(res, horiz=T, las=1, col=colors, xlab="Total count", cex.names=0.7, family = "mono")
+bar_positions <- barplot(res, horiz=T, las=1, col=colors, xlab="Total count", cex.names=0.7)
+# axis(1, family="sans")
+# axis(2, at=bar_positions, labels=names(res), las=1, family="mono")
 #
 dev.off()
 
 ## Figure: Single site species biomass
 pdf(file="plot-single-site-biomasses.pdf", width=2.5, height=4)
-par(mar = c(5, 5, 1, 1), xpd = TRUE, mfrow=c(1,1), bty="l")
+par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
 #
 ## Biomass
 res <- NULL
@@ -336,26 +338,30 @@ names(res) <- site_unique_species_codes
 #
 ## Plot
 colors <- rainbow(length(res), start = 0.0, end = 0.8, alpha=1.0)
-barplot(res, horiz=T, las=1, col=colors, xlab="Total biomass (g)", cex.names=0.7, family = "mono")
+bar_positions <- barplot(res, horiz=T, las=1, col=colors, xlab="Total biomass (g)", cex.names=0.7)
+# axis(1, family="sans")
+# axis(2, at=bar_positions, labels=names(res), las=1, family="mono")
 #
 dev.off()
 
 ## Figure: Single site species size distributions
-pdf(file="plot-single-site-sizes.pdf", width=4, height=3)
-par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,3), bty="l")
 #
 ## Three most abundant species
 res <- table(site_ind_measure$species_code)
 selected_species_codes <- names(sort(res, decreasing = TRUE))[1:3]
 #
+k <- 1
 for (species_code_ in selected_species_codes){
   #
   ## Size distribution
+  pdf(file=paste("plot-single-site-sizes-", k, ".pdf", sep=""), width=2.5, height=4)
+  par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
   tab <- site_ind_measure[which(site_ind_measure$species_code == species_code_),]
   hist(tab$size_mm, las=1, xlab="Body size (mm)", main=paste(species_code_))
+  dev.off()
+  k <- k + 1
 }
 #
-dev.off()
 
 ## Selected species counts
 selected_species <- c("VAN", "GOU", "ABL")
@@ -404,7 +410,7 @@ y <- tab_species_abundances[s,]
 
 ## Figure: Time series of proportional abundances
 pdf(file="plot-single-site-proportional-abundances.pdf", width=5, height=4)
-par(mar = c(5, 5, 1, 1), xpd = TRUE, mfrow=c(1,1), bty="l")
+par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
 #
 ## Minimal stacked area plot
 sp <- selected_species# c("BRO", "PER", "TRF", "SIL", "GOU")
@@ -451,7 +457,7 @@ order_ <- order(times)
 for (k in 1:length(unique_op_ids)){
   
   pdf(file=paste("plot-single-site-network-",k,".pdf",sep=""), width=5, height=4)
-  par(mar = c(5, 5, 1, 1))
+  par(mar = c(5, 5, 2, 2), family="mono")
   
   ## Check time
   unique_op_ids_ <- unique_op_ids[order_[k]]
@@ -505,7 +511,7 @@ for (k in 1:length(unique_op_ids)){
     paste("t =", round(times[order_[k]]/365), "years"),
     paste("mean TL =", round(mean(TL), 2)),
     paste("max TL =", round(max(TL), 2))
-  ), bty="n", cex=1.5)
+  ), bty="n")
   # legend(-0.55, -0.25, legend = paste("t =",round(times[order_[k]]/365),"years"), bty="n", cex=2)
   
   ##
@@ -524,7 +530,7 @@ for (k in 1:length(unique_op_ids)){
 pdf(file="plot-multi-site-num-samples.pdf", width=8, height=8)
 
 ## Graphical parameters
-par(mar = c(4, 4, 4, 4), xpd = TRUE, mfrow=c(1,1))
+par(mar = c(4, 4, 4, 4), xpd = TRUE, mfrow=c(1,1), family="mono")
 
 ## Keep only one observation per operation
 s <- match(unique(tab_fish_individual_size_weight$operation_id), tab_fish_individual_size_weight$operation_id) 
@@ -606,7 +612,7 @@ selected_species <- c("TRF", "BRO", "SIL")
 pdf(file="plot-multi-site-species-distributions.pdf", width=8, height=8)
 #
 ## Graphical parameters
-par(mar = c(4, 4, 4, 4), xpd = TRUE)
+par(mar = c(4, 4, 4, 4), xpd = TRUE, family="mono")
 colors <- rainbow(length(selected_species))
 #
 ## For each species
