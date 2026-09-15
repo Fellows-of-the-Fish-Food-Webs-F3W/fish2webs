@@ -12,7 +12,7 @@
 INSTALL <- FALSE # {TRUE, FALSE} to install all packages in dependencies before running
 DEBUG_MODE <- TRUE # {TRUE, FALSE} to run whole pipeline on smaller operation set
 OUTPUT_FOLDER <- "./outputs" # Folder where the output tables will be stored
-system("mkdir ./outputs")
+system("mkdir ./outputs") # TODO: implement saving files in output folder
 
 #
 ###
@@ -41,6 +41,9 @@ data(pred_win, package = "foodwebbuilder")
 ################
 ## LOAD FILES ##
 ################
+
+## Move to output dir
+setwd(OUTPUT_FOLDER)
 
 tab_site_information <- read.csv("1_tab_site_information.csv")
 tab_operation_information <- read.csv("2_tab_operation_information.csv")
@@ -104,6 +107,8 @@ par(mfrow = c(1, 1))
 ##############################
 ## EXAMPLE ANALYSIS METAWEB ##
 ##############################
+
+library(foodwebbuilder)
 
 ## Rebuild metaweb
 metaweb <- unflatten_foodweb(tab_metaweb)
@@ -231,6 +236,42 @@ get_op_time <- function(op_id, op_ids_and_times=tab_operation_information){
 }
 head(tab_operation_information)
 get_op_time(39)
+
+## TODO: update code of function in foodwebbuilder repository
+plot_network <- function (M, x = NULL, y = NULL, labels = NULL, xlab = "", ylab = "", 
+                          line_width_max = 1, label_space_x = 0.05, add_legend = "topright",
+                          cex.dots=2, cex.text=1.5) 
+{
+  d = dim(M)[1]
+  if (is.null(labels) == T) 
+    labels = 1:d
+  if (is.null(x) == T) 
+    x = cos((1:d)/0.25)
+  if (is.null(y) == T) 
+    y = sin((1:d)/0.25)
+  delta_x = (max(x) - min(x)) * label_space_x
+  plot(x, y, xlim = c(min(x) - delta_x, max(x) + delta_x * 
+                        1.5), cex = 0, bty = "n", xlab = xlab, ylab = ylab, cex.lab = 1.5, 
+       bty = "l")
+  for (j in 1:ncol(M)) {
+    color_ = rainbow(ncol(M))[j]
+    for (i in 1:nrow(M)) {
+      line_width = abs(M[i, j])/max(abs(M)) * line_width_max
+      lines(x = c(x[i], x[j] - delta_x/2), y = c(y[i], 
+                                                 y[j]), col = color_, lwd = line_width)
+      # arrows(x0 = x[i], x1 = x[j] - delta_x/2, y0 = y[i], 
+      #        y1 = y[j], col = color_, lwd = line_width)
+    }
+  }
+  points(x - delta_x/2, y, pch = 1, cex = cex.dots)
+  points(x, y, pch = 16, cex = cex.dots)
+  text(x + delta_x, y, labels = labels, cex = cex.text)
+  if (add_legend != "off") {
+    legend(add_legend, legend = c("Ingoing effects", "Outgoing effects"), 
+           pch = c(1, 16), col = c("black", "black"), cex = 1.5, 
+           bg = "white", box.col = "white")
+  }
+}
 
 #
 ###
@@ -415,20 +456,10 @@ for (k in 1:length(unique_op_ids)){
   unique_op_ids_ <- unique_op_ids[order_[k]]
   print(times[order_[k]]/365)
   
-  ## Build local foodwebs
-  subset_ind_clean <- site_ind_measure[which(site_ind_measure$operation_id == unique_op_ids_),]
-  colnames(subset_ind_clean)[3] <- "size" # TODO: Fix expected colnames in foodwebbuilder package "size" --> "size_mm"
-  message("Extracting local food webs...")
-  local_foodwebs <- build_local_foodweb(
-    ind_measure       = subset_ind_clean,
-    local_id          = "operation_id",         # column in ind_measure
-    metaweb           = metaweb,
-    tab_size_classes  = tab_trophic_species_size_classes,
-    selected_resources  = c("det", "biof", "phytob", "macroph", "phytopl", "zoopl", "zoob")
-  )
-  
-  ## Un-list food web
-  local_foodweb <- local_foodwebs[[1]]
+  ## Select a local food web
+  local_foodwebs <- tab_local_foodwebs
+  s <- which(local_foodwebs$operation_id == unique_op_ids_)
+  local_foodweb <- unflatten_foodweb(local_foodwebs[s,])
   
   ## Structural metrics
   basal_nodes <- get_basal_nodes(local_foodweb)

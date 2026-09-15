@@ -10,7 +10,7 @@
 
 ## User defined variables
 INSTALL <- FALSE # {TRUE, FALSE} to install all packages in dependencies before running
-DEBUG_MODE <- TRUE # {TRUE, FALSE} to run whole pipeline on smaller operation set
+DEBUG_MODE <- FALSE # {TRUE, FALSE} to run whole pipeline on smaller operation set
 OUTPUT_FOLDER <- "./outputs" # Folder where the output tables will be stored
 system("mkdir ./outputs") # TODO: Implement saving file in output folder
 
@@ -60,6 +60,9 @@ data(pred_win, package = "foodwebbuilder")
 ## MAIN FISH2SIZE ##
 ####################
 
+## Move to output dir
+setwd(OUTPUT_FOLDER)
+
 ## Format individual fish sizes
 outputs_fish2size <- fish2size(write_output = T)
 fish_individual_size <- outputs_fish2size$fish_individual_size_weight
@@ -72,7 +75,7 @@ if (DEBUG_MODE == TRUE){
 } else{
   ## Generate food webs from size for all operations
   ## Takes a while so not for demo
-  outputs_size2webs <- size2webs(num_classes = 9, fish_individual_size, resource_diet_shift, fish_diet_shift, pred_win, write_output=F)
+  outputs_size2webs <- size2webs(num_classes = 3, fish_individual_size, resource_diet_shift, fish_diet_shift, pred_win, write_output=T)
 }
 
 #
