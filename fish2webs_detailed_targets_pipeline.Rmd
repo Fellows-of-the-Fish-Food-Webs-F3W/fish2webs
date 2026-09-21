@@ -486,7 +486,73 @@ The final `fish_individual_size` target contains one record per individual fish.
 
 ---
 
-# **Step 5 - Build the trophic metaweb**
+# **Step 5 - Compute individual weight**
+
+Individual fish body weights are estimated from body lengths using species-specific length–weight relationships.
+
+```{targets compute-weight}
+tar_target(
+    fish_individual_size_weight,
+    convert_length_to_weight(
+    fish_data = fish_individual_size,
+    species_ref = ref_species_clean,
+    verbose = TRUE
+  )
+)
+```
+
+---
+
+# **Step 6 - Compute community and species-level descriptors**
+
+This step computes community- and species-level metrics from individual fish body sizes and weights. These metrics describe the richness, abundance and biomass of fish communities for each sampling operation.
+
+```{targets compute-community-metrics}
+list(
+  tar_target(
+    community_metrics,
+    compute_community_metrics(
+      fish_data = fish_individual_size_weight$fish_data,
+      operation = filtered_sampling$operation
+    )
+  ),
+
+  tar_target(
+    species_level_metrics,
+    community_metrics |>
+      dplyr::select(
+        operation_id,
+        abundance_by_species
+      ) |>
+      tidyr::unnest(abundance_by_species) |>
+      dplyr::left_join(
+        community_metrics |>
+          dplyr::select(
+            operation_id,
+            biomass_by_species
+          ) |>
+          tidyr::unnest(biomass_by_species),
+        by = c("operation_id", "species_code")
+      ) |>
+      dplyr::select(
+        operation_id,
+        species_code,
+        total_abundance,
+        abundance_per_m2,
+        total_biomass_g,
+        biomass_g_per_m2
+      ) |>
+      dplyr::arrange(
+        operation_id,
+        species_code
+      )
+  )
+)
+```
+
+---
+
+# **Step 7 - Build the trophic metaweb**
 
 This step builds a trophic metaweb representing all potential trophic interactions among the fish species and resources considered. Individual fish are first grouped into species-specific size classes, after which potential interactions are determined from species identity, body size, ontogenetic diet information and predator–prey body-size windows
 
@@ -508,7 +574,7 @@ list(
   tar_target(
     fish_individual_size_filtered,
     remove_missing_species(
-      ind_measure = fish_individual_size,
+      ind_measure = fish_individual_size_weight$fish_data,
       fish_diet_shift = fish_diet_shift,
       pred_win = pred_win
     )
@@ -540,7 +606,7 @@ list(
 
 ---
 
-# **Step 6 - Reconstruct local food webs**
+# **Step 8 - Reconstruct local food webs**
 
 This step reconstructs local food-webs for each sampling operation. The metaweb is restricted to the fish species and size classes observed locally, while retaining always the selected resource nodes.
 
@@ -559,28 +625,59 @@ tar_target(
 
 ---
 
-# **Step 7 - Compute food-web metrics**
+# **Step 9 - Compute food-web and trophic-species-level metrics**
 
-This step computes summary network metrics for each reconstructed local food-web. The resulting table contains one row per sampling operation and the food-web metrics returned by `compute_metrics_summary()`.
+This step computes metrics at two levels. Food-web metrics describe the overall structure of each reconstructed local food web, while trophic-species-level metrics describe individual nodes within these networks. Both sets of metrics are calculated for each sampling operation.
 
 ```{targets compute-food-web-metrics}
-tar_target(
-  local_foodweb_summary_metrics,
-  purrr::imap_dfr(
-    local_foodwebs,
-    function(local_foodweb, operation_id) {
-      metrics <- compute_metrics_summary(local_foodweb)
+list(
+  # Compute summary metrics for each local food web.
+  tar_target(
+    local_foodweb_summary_metrics,
+    purrr::imap_dfr(
+      local_foodwebs,
+      function(local_foodweb, operation_id) {
+        metrics <- compute_metrics_summary(local_foodweb)
 
-      tibble::as_tibble_row(
-        c(
-          operation_id = operation_id,
-          metrics
+        tibble::as_tibble_row(
+          c(
+            operation_id = operation_id,
+            metrics
+          )
         )
-      )
-    }
+      }
+    )
+  ),
+
+  # Compute trophic-species-level metrics for each sampling operation.
+  tar_target(
+    trophic_species_level_metrics,
+    purrr::imap_dfr(
+      local_foodwebs,
+      function(local_foodweb, operation_id) {
+
+        ind_operation <- fish_individual_size_filtered |>
+          dplyr::filter(
+            operation_id == .env$operation_id
+          )
+
+        node_metrics <- compute_node_metrics(
+          M = local_foodweb,
+          ind_measure = ind_operation,
+          tab_size_classes = size_classes
+        )
+
+        node_metrics |>
+          dplyr::mutate(
+            operation_id = operation_id,
+            .before = 1
+          )
+      }
+    )
   )
 )
 ```
+
 ---
 
 # **Generate and run the pipeline**
