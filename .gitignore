@@ -1,2 +1,7 @@
 .DS_Store
-dev/
+outputs/[1-9]_tab_*.csv
+outputs/1[0-2]_tab_*.csv
+outputs/*.pdf
+dev
+.Rhistory
+Rplots.pdf
