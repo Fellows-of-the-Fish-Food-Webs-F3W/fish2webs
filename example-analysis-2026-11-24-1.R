@@ -399,7 +399,7 @@ for (species_code_ in selected_species_codes){
   if (SAVE_PLOTS==T) pdf(file=paste0("plot-single-site-sizes-site-id-", SITE_INDEX, "-", k, ".pdf"), width=2.5, height=4)
   par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
   tab <- site_ind_measure[which(site_ind_measure$species_code == species_code_),]
-  hist(tab$size_mm, las=1, xlab="Body size (mm)", main=paste(species_code_))
+  hist(tab$size_mm, las=1, xlab="Body mass (mm)", main=paste(species_code_))
   if (SAVE_PLOTS==T) dev.off()
   k <- k + 1
 }
@@ -415,7 +415,7 @@ for (species_code_ in selected_species_codes){
   ## Size distribution
   par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
   tab <- site_ind_measure[which(site_ind_measure$species_code == species_code_),]
-  hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[k], las=1, xlab="Body size (mm, log10 scale)", main="", add=k > 1)
+  hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[k], las=1, xlab="Body mass (mm)", main="", add=k > 1)
   k <- k + 1
 }
 #
@@ -512,6 +512,30 @@ if (SAVE_PLOTS==T) dev.off()
 ## Figure: Time series of local food webs
 k <- 1
 order_ <- order(times)
+## Figure: Operation-specific combined species size distributions
+k <- 1
+for (k in 1:length(unique_op_ids)){
+  unique_op_ids_ <- unique_op_ids[order_[k]]
+  operation_measure <- site_ind_measure[which(site_ind_measure$operation_id == unique_op_ids_),]
+  res <- table(operation_measure$species_code)
+  selected_species_codes <- names(sort(res, decreasing = TRUE))[1:6]
+  selected_sizes <- operation_measure$size_mm[operation_measure$species_code %in% selected_species_codes]
+  breaks <- pretty(range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), n=20)
+  site_species <- sort(unique(site_ind_measure$species_code))
+  site_colors <- rainbow(length(site_species), start=0.0, end=0.8, alpha=1.0)
+  colors <- site_colors[match(selected_species_codes, site_species)]
+  if (SAVE_PLOTS==T) pdf(file=paste0("plot-operation-combined-sizes-site-id-", SITE_INDEX, "-", unique_op_ids_, ".pdf"), width=2.5, height=4)
+  par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
+  j <- 1
+  for (species_code_ in selected_species_codes){
+    tab <- operation_measure[which(operation_measure$species_code == species_code_),]
+    hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[j], las=1, xlab="Body mass (mm)", main="", add=j > 1)
+    j <- j + 1
+  }
+  if (SAVE_PLOTS==T) dev.off()
+  k <- k + 1
+}
+
 for (k in 1:length(unique_op_ids)){
   
   if (SAVE_PLOTS==T) pdf(file=paste0("plot-single-site-network-site-id-", SITE_INDEX, "-", k, ".pdf"), width=5, height=4)
@@ -806,7 +830,7 @@ for (species_code_ in selected_species_codes){
   if (SAVE_PLOTS==T) pdf(file=paste0("plot-single-site-sizes-site-id-", SITE_INDEX, "-", k, ".pdf"), width=2.5, height=4)
   par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
   tab <- site_ind_measure[which(site_ind_measure$species_code == species_code_),]
-  hist(tab$size_mm, las=1, xlab="Body size (mm)", main=paste(species_code_))
+  hist(tab$size_mm, las=1, xlab="Body mass (mm)", main=paste(species_code_))
   if (SAVE_PLOTS==T) dev.off()
   k <- k + 1
 }
@@ -822,7 +846,7 @@ for (species_code_ in selected_species_codes){
   ## Size distribution
   par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
   tab <- site_ind_measure[which(site_ind_measure$species_code == species_code_),]
-  hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[k], las=1, xlab="Body size (mm, log10 scale)", main="", add=k > 1)
+  hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[k], las=1, xlab="Body mass (mm)", main="", add=k > 1)
   k <- k + 1
 }
 #
@@ -919,6 +943,38 @@ if (SAVE_PLOTS==T) dev.off()
 ## Figure: Time series of local food webs
 k <- 1
 order_ <- order(times)
+## Figure: Operation-specific combined species size distributions
+k <- 1
+for (k in 1:length(unique_op_ids)){
+  #
+  ## Select specific operation
+  unique_op_ids_ <- unique_op_ids[order_[k]]
+  operation_measure <- site_ind_measure[which(site_ind_measure$operation_id == unique_op_ids_),]
+  res <- table(operation_measure$species_code)
+  #
+  ## Select most common species for visualisation
+  selected_species_codes <- names(sort(res, decreasing = TRUE))[1:6]
+  selected_sizes <- operation_measure$size_mm[operation_measure$species_code %in% selected_species_codes]
+  breaks <- pretty(range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), n=20)
+  site_species <- sort(unique(site_ind_measure$species_code))
+  #
+  ## Compute colours
+  site_colors <- rainbow(length(site_species), start=0.0, end=0.8, alpha=1.0)
+  colors <- site_colors[match(selected_species_codes, site_species)]
+  #
+  ## Plot
+  if (SAVE_PLOTS==T) pdf(file=paste0("plot-operation-combined-sizes-site-id-", SITE_INDEX, "-", unique_op_ids_, ".pdf"), width=2.5, height=4)
+  par(mar = c(5, 5, 2, 2), xpd = TRUE, mfrow=c(1,1), bty="l", family="mono")
+  j <- 1
+  for (species_code_ in selected_species_codes){
+    tab <- operation_measure[which(operation_measure$species_code == species_code_),]
+    hist(log10(tab$size_mm[tab$size_mm > 0]), breaks=breaks, xlim=range(log10(selected_sizes[selected_sizes > 0]), na.rm=TRUE), col=colors[j], las=1, xlab="Body mass (mm)", main="", add=j > 1)
+    j <- j + 1
+  }
+  if (SAVE_PLOTS==T) dev.off()
+  k <- k + 1
+}
+
 for (k in 1:length(unique_op_ids)){
   
   if (SAVE_PLOTS==T) pdf(file=paste0("plot-single-site-network-site-id-", SITE_INDEX, "-", k, ".pdf"), width=5, height=4)
