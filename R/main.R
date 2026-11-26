@@ -184,7 +184,7 @@ fish2size <- function(write_output = FALSE) {
     dplyr::left_join(
       op_description |>
         dplyr::select(
-          operation_id = odp_id,
+          operation_id = odp_ope_id,
           sampled_length = odp_longueur,
           wetted_width = odp_largeur_lame_eau
         ),
