@@ -52,6 +52,9 @@ fish2size <- function(write_output = FALSE) {
   operation <- clean_operation_aspe() |>
     tibble::as_tibble()
 
+  op_description <- get_description_operation_aspe() |>
+    tibble::as_tibble()
+
   ele_sampling <- cleaning_elementary_sampling() |>
     tibble::as_tibble()
 
@@ -178,13 +181,25 @@ fish2size <- function(write_output = FALSE) {
     dplyr::mutate(
       time = format(date_time, "%H:%M:%S")
     ) |>
+    dplyr::left_join(
+      op_description |>
+        dplyr::select(
+          operation_id = odp_id,
+          sampled_length = odp_longueur,
+          wetted_width = odp_largeur_lame_eau
+        ),
+      by = "operation_id",
+      relationship = "many-to-one"
+    ) |>
     dplyr::select(
       operation_id,
       site_id,
       date,
       time,
       protocol,
-      computed_surface
+      computed_surface,
+      sampled_length,
+      wetted_width
     ) |>
     dplyr::arrange(operation_id)
 
